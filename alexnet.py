@@ -153,8 +153,8 @@ def evaluate(model, class_count=1000, image_height=224, image_width=224):
 
     # train the model using a batch generator
     batch_generator = generator(batch_size, class_count, image_height, image_width, x_test, y_test)
-    model.fit_generator(generator=batch_generator,
-                        steps=steps)
+    model.evaluate_generator(generator=batch_generator,
+                             steps=steps)
     scores = model.evaluate_generator()
     print("Test Loss:\t", scores[0])
     print("Test Accuracy:\t", scores[1])
