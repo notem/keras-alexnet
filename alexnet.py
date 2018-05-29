@@ -132,7 +132,8 @@ def train_model(model, image_height=224, image_width=224, class_count=1000):
     batch_generator = generator(batch_size, class_count, image_height, image_width, x_train, y_train)
     model.fit_generator(generator=batch_generator,
                         steps_per_epoch=steps,
-                        epochs=epochs)
+                        epochs=epochs,
+                        verbose=1)
 
     # train the model on the dataset
     # count=10000
@@ -153,9 +154,9 @@ def evaluate(model, class_count=1000, image_height=224, image_width=224):
 
     # train the model using a batch generator
     batch_generator = generator(batch_size, class_count, image_height, image_width, x_test, y_test)
-    model.evaluate_generator(generator=batch_generator,
-                             steps=steps)
-    scores = model.evaluate_generator()
+    scores = model.evaluate_generator(generator=batch_generator,
+                                      steps=steps,
+                                      verbose=1)
     print("Test Loss:\t", scores[0])
     print("Test Accuracy:\t", scores[1])
 
@@ -181,8 +182,8 @@ def main():
             os.makedirs(save_dir)
         model_name = default_model_name
         model_path = os.path.join(save_dir, model_name)
-    model.save_weights(model_path, True)
-    print("Model Saved to: %s", model_path)
+    model.save(model_path)
+    print("Alexnet model saved to: %s" % model_path)
 
 
 if __name__ == "__main__":

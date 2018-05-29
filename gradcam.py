@@ -5,10 +5,10 @@ import cv2
 import sys
 import random
 import os
-from .alexnet import load_dataset, default_model_name, default_model_dir
+from alexnet import load_dataset, default_model_name, default_model_dir
 
 
-def build_model():
+def load_model():
     """loads a trained model
     """
     if len(sys.argv) == 0:
@@ -49,14 +49,15 @@ def guided_backprop(model, image, target_layer):
         """
         :return:
         """
-        input = model.input
+        model_input = model.input
         layer_output = model.get_layer(target_layer)
         max_output = keras.backend.max(layer_output, axis=3)
-        saliency = keras.backend.gradients(keras.backend.sum(max_output), input)[0]
-        return keras.backend.function([input, keras.backend.learning_phase()], [saliency])
+        saliency = keras.backend.gradients(keras.backend.sum(max_output), model_input)[0]
+        return keras.backend.function([model_input, keras.backend.learning_phase()], [saliency])
 
     def modify_backprop(model, gradient_name):
-        """
+        """recreates the model in which the guided back-prop gradient function overrides
+        the usual relu activation functions
         :param model:
         :param gradient_name:
         :return:
@@ -73,14 +74,15 @@ def guided_backprop(model, image, target_layer):
                     layer.activation = tf.nn.relu
 
             # re-instantiate a new model with the tensorflow override
-            new_model = build_model()
+            new_model = load_model()
         return new_model
 
-    # register the guided back prop gradient function in tensorflow
+    # register the guided back-prop gradient function in tensorflow
     if "GuidedBackProp" not in tf.python.framework.ops._gradient_registry._registry:
         @tf.python.framework.ops.RegisterGradient("GuidedBackProp")
         def _GuidedBackProp(op, grad):
-            dtype = op.inputs[0].dtype
+            dtype = op.inputs[0].dtype  # probably float
+            # clever way to mask the gradient if either op.inputs or grad is negative
             return grad * tf.cast(grad > 0., dtype) * tf.cast(op.inputs[0] > 0., dtype)
 
     # do guided backprop and create the saliency map
@@ -138,7 +140,7 @@ def overlay_heatmap(image, heatmap):
 
 def main():
     # load model
-    model = build_model()
+    model = load_model()
 
     # load target image
     (x_train, y_train), (x_test, y_test) = load_dataset()
@@ -153,15 +155,15 @@ def main():
 
     # apply grad-cam
     heatmap = grad_cam(model, img, predicted_class, "conv2d_5")
-    cv2.imwrite("gradcam.jpg", overlay_heatmap(img, heatmap))
+    cv2.imwrite(index+"_gradcam.jpg", overlay_heatmap(img, heatmap))
 
     # produce saliency map using guided backprop
     saliency = guided_backprop(model, img, "conv2d_5")
-    cv2.imwrite("saliency.jpg", deprocess_image(saliency))
+    cv2.imwrite(index+"_saliency.jpg", deprocess_image(saliency))
 
     # combine saliency map with heatmap
     guided_gradcam = saliency * heatmap[..., np.newaxis]
-    cv2.imwrite("guided_gradcam.jpg", deprocess_image(guided_gradcam))
+    cv2.imwrite(index+"_guided-gradcam.jpg", deprocess_image(guided_gradcam))
 
 
 if __name__ == "__main__":
