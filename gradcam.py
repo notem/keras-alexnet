@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.framework import ops
 import keras
 import cv2
 import sys
@@ -50,7 +51,7 @@ def guided_backprop(model, image, target_layer):
         :return:
         """
         model_input = model.input
-        layer_output = model.get_layer(target_layer)
+        layer_output = model.get_layer(target_layer).output
         max_output = keras.backend.max(layer_output, axis=3)
         saliency = keras.backend.gradients(keras.backend.sum(max_output), model_input)[0]
         return keras.backend.function([model_input, keras.backend.learning_phase()], [saliency])
@@ -78,8 +79,8 @@ def guided_backprop(model, image, target_layer):
         return new_model
 
     # register the guided back-prop gradient function in tensorflow
-    if "GuidedBackProp" not in tf.python.framework.ops._gradient_registry._registry:
-        @tf.python.framework.ops.RegisterGradient("GuidedBackProp")
+    if "GuidedBackProp" not in ops._gradient_registry._registry:
+        @ops.RegisterGradient("GuidedBackProp")
         def _GuidedBackProp(op, grad):
             dtype = op.inputs[0].dtype  # probably float
             # clever way to mask the gradient if either op.inputs or grad is negative
