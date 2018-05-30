@@ -3,9 +3,10 @@ import cv2
 import numpy as np
 import sys
 import os
+import argparse
 
 default_model_name = 'keras_alexnet.h5'
-default_model_dir = 'saved_models'
+default_model_dir = 'models'
 
 
 def build_model(image_height=224, image_width=224, class_count=1000):
@@ -108,8 +109,9 @@ def generator(batch_size, class_count, image_height, image_width, x_data, y_data
                 Y = []
 
 
-def train_model(model, image_height=224, image_width=224, class_count=1000):
+def train_model(model, image_height=224, image_width=224, class_count=1000, epochs=90):
     """train the SuperVision/alexnet NN model
+    :param epochs:
     :param image_height:
     :param class_count:
     :param image_width:
@@ -124,7 +126,6 @@ def train_model(model, image_height=224, image_width=224, class_count=1000):
     # training parameters
     (x_train, y_train), (x_test, y_test) = load_dataset()
     batch_size = 128
-    epochs = 90
     steps = len(x_train) / batch_size
 
     # train the model using a batch generator
@@ -143,6 +144,9 @@ def train_model(model, image_height=224, image_width=224, class_count=1000):
 
 def evaluate(model, class_count=1000, image_height=224, image_width=224):
     """evaluate the performance of the trained model using the prepared testing set
+    :param image_width:
+    :param class_count:
+    :param image_height:
     :param model: compiled NN model with trained weights
     """
 
@@ -154,38 +158,62 @@ def evaluate(model, class_count=1000, image_height=224, image_width=224):
     # train the model using a batch generator
     batch_generator = generator(batch_size, class_count, image_height, image_width, x_test, y_test)
     scores = model.evaluate_generator(generator=batch_generator,
-                                      steps=steps,
-                                      verbose=1)
+                                      #verbose=1,
+                                      steps=steps)
     print("Test Loss:\t", scores[0])
     print("Test Accuracy:\t", scores[1])
+
+
+def parse_arguments():
+    """parse command line input
+    :return: dictionary of arguments keywords and values
+    """
+    parser = argparse.ArgumentParser(description="Construct and train an alexnet model.",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-n',
+                        default=default_model_name,
+                        metavar='<model_name>',
+                        help='The name to be given to the output model.')
+    parser.add_argument('-d',
+                        default=default_model_dir,
+                        metavar='<output_directory>',
+                        help='The directory in which the models should be saved.')
+    parser.add_argument('-e',
+                        default=90,
+                        metavar='<number_of_epochs>',
+                        help='The number of epochs used to train the model. The original alexnet used 90 epochs.')
+    return vars(parser.parse_args())
 
 
 def main():
     """build, train, and test an implementation of the alexnet CNN model in keras.
     This model is trained and tested on the CIFAR-100 dataset
     """
+    # parse arguments
+    args = parse_arguments()
+    save_dir = os.path.join(os.getcwd(), args['d'])
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    model_path = os.path.join(save_dir, args['n'])
+    epochs = args['e']
+
     # build and train the model
     model = build_model(class_count=100)
     print(model.summary())
-    train_model(model, class_count=100)
+    train_model(model, class_count=100, epochs=epochs)
 
     # test the model
     evaluate(model, class_count=100)
 
     # save the trained model
-    if len(sys.argv) == 0:
-        model_path = sys.argv[0]
-    else:
-        save_dir = os.path.join(os.getcwd(), default_model_dir)
-        if not os.path.isdir(save_dir):
-            os.makedirs(save_dir)
-        model_name = default_model_name
-        model_path = os.path.join(save_dir, model_name)
     model.save(model_path)
     print("Alexnet model saved to: %s" % model_path)
 
 
 if __name__ == "__main__":
     # execute only if run as a script
-    main()
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(1)
 
