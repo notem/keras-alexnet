@@ -18,7 +18,6 @@ def build_model(image_height=224, image_width=224, class_count=1000):
     http://image-net.org/challenges/LSVRC/2012/supervision.pdf
     :return: assembled alexnet/supervision keras model
     """
-
     model = keras.models.Sequential()
 
     # layer 1 - "filters the 224 x 224 x 3 input image with 96 kernels
@@ -26,7 +25,7 @@ def build_model(image_height=224, image_width=224, class_count=1000):
     model.add(keras.layers.Conv2D(filters=96,
                                   kernel_size=(11, 11),
                                   strides=4,
-                                  input_shape=(image_height, image_width, 3,),
+                                  input_shape=(image_height, image_width, 3),
                                   activation="relu",
                                   padding="same"))
     model.add(keras.layers.BatchNormalization())
@@ -117,7 +116,7 @@ def train_model(model, image_height=224, image_width=224, class_count=1000):
     :param model: NN model (uncompiled, without weights)
     :return: compiled NN model with weights
     """
-    # compile with SGD optimizer and mean squared loss function
+    # compile with SGD optimizer and categorical_crossentropy as the loss function
     model.compile(loss="categorical_crossentropy",
                   optimizer=keras.optimizers.SGD(lr=0.02, momentum=0.9, decay=0.0005),
                   metrics=['accuracy'])

@@ -5,7 +5,7 @@ import cv2
 import sys
 import random
 import os
-from alexnet import load_dataset, default_model_name, default_model_dir
+from alexnet import load_dataset, default_model_name, default_model_dir, preprocess_image
 
 
 def load_model():
@@ -145,25 +145,25 @@ def main():
     # load target image
     (x_train, y_train), (x_test, y_test) = load_dataset()
     index = random.randint(0, len(x_test))
-    img = x_test[index]
-    cv2.imwrite(index+".jpg", img)
+    img = np.array([preprocess_image(x_test[index], 224, 224)])  # (224, 224, 3)
+    cv2.imwrite(str(index)+".jpg", img[0])
 
     # make a prediction
     predictions = model.predict(img)
-    predicted_class = keras.backend.argmax(predictions, axis=1)
+    predicted_class = np.argmax(predictions, axis=1)
     print("Supplied image was classified as [%u] by the model." % predicted_class)
 
     # apply grad-cam
     heatmap = grad_cam(model, img, predicted_class, "conv2d_5")
-    cv2.imwrite(index+"_gradcam.jpg", overlay_heatmap(img, heatmap))
+    cv2.imwrite(str(index)+"_gradcam.jpg", overlay_heatmap(img, heatmap))
 
     # produce saliency map using guided backprop
     saliency = guided_backprop(model, img, "conv2d_5")
-    cv2.imwrite(index+"_saliency.jpg", deprocess_image(saliency))
+    cv2.imwrite(str(index)+"_saliency.jpg", deprocess_image(saliency))
 
     # combine saliency map with heatmap
     guided_gradcam = saliency * heatmap[..., np.newaxis]
-    cv2.imwrite(index+"_guided-gradcam.jpg", deprocess_image(guided_gradcam))
+    cv2.imwrite(str(index)+"_guided-gradcam.jpg", deprocess_image(guided_gradcam))
 
 
 if __name__ == "__main__":
