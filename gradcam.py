@@ -42,11 +42,12 @@ def normalize_image(x):
 
 def guided_backprop(model, image, target_layer, path):
     """modifies the model activation functions with a new gradient
+    This method (and related functions) is a modified variant of the implementation seen here:
+        https://github.com/jacobgil/keras-grad-cam
     """
 
     def compile_saliency_function(model, target_layer):
         """
-        :return:
         """
         model_input = model.input
         layer_output = model.get_layer(target_layer).output
@@ -57,9 +58,9 @@ def guided_backprop(model, image, target_layer, path):
     def modify_backprop(model, gradient_name):
         """recreates the model in which the guided back-prop gradient function overrides
         the usual relu activation functions
-        :param model:
-        :param gradient_name:
-        :return:
+        :param model: the model to be modified
+        :param gradient_name: name of the custom gradient function registered in tensorflow
+        :return: a new model with modified ReLU gradients
         """
         g = tf.get_default_graph()
         with g.gradient_override_map({'Relu': gradient_name}):
@@ -90,24 +91,25 @@ def guided_backprop(model, image, target_layer, path):
     return saliency_fn([image, 0])[0]
 
 
-def grad_cam(input_model, image, category_index, layer_name, height=224, width=224):
-    """
-    :param input_model:
-    :param image:
-    :param category_index:
-    :param layer_name:
-    :param width:
-    :param height:
+def grad_cam(model, image, category_index, layer_name, height=224, width=224):
+    """produces a heatmap representing the pixels that most (positively) affected the model's
+    classification decision for the image
+    This method is a modified variant of the grad_cam function found here:
+        https://github.com/totti0223/gradcamplusplus
+    :param model:
+    :param image: numpy array of three dimensions
+    :param category_index: classification category of the image
+    :param layer_name: name of the conv+activation layer to analyze
     :return:
     """
-    y_c = input_model.output[0, category_index]  # prediction tensor for class
-    conv_output = input_model.get_layer(layer_name).output  # tensor of the output of the last conv layer
+    y_c = model.output[0, category_index]  # prediction tensor for class
+    conv_output = model.get_layer(layer_name).output  # tensor of the output of the last conv layer
     grads = keras.backend.gradients(y_c, conv_output)[0]  # output gradients tensor
-    gradient_function = keras.backend.function([input_model.input],
+    gradient_function = keras.backend.function([model.input],
                                                [conv_output, grads])  # computes output and gradient tensors
 
     output, grads_val = gradient_function([image])  # get gradient
-    output, grads_val = output[0, :], grads_val[0, :, :, :]
+    output, grads_val = output[0, ...], grads_val[0, ...]
 
     weights = np.mean(grads_val, axis=(0, 1))  # compute weights as mean from gradient
     cam = np.dot(output, weights)  # compute activations from weights
@@ -120,10 +122,7 @@ def grad_cam(input_model, image, category_index, layer_name, height=224, width=2
 
 
 def overlay_heatmap(image, heatmap):
-    """
-    :param image:
-    :param heatmap:
-    :return:
+    """merges an image and corresponding heatmap
     """
     # Return to BGR [0..255] from the preprocessed image
     image = image[0, :]
