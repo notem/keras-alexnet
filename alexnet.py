@@ -195,7 +195,7 @@ def main():
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
     model_path = os.path.join(save_dir, args['n'])
-    epochs = args['e']
+    epochs = int(args['e'])
 
     # build and train the model
     model = build_model(class_count=100)
